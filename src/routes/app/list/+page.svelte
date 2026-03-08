@@ -8,23 +8,21 @@
 	{#each products as product}
 		{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
 		{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
-		<a href="/app/product/{product.id}" class="block">
+		<a href="/app/product/{product.id}" class="block min-w-0">
 			<article class="rounded-lg border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
 				{#if imageUrl}
-					<div class="mb-3 aspect-square w-full overflow-hidden rounded-md">
+					<div class="mb-3 aspect-square w-full min-h-0 overflow-hidden rounded-md">
 						<img
 							src={imageUrl}
 							alt={product.name ?? 'Product'}
-							class="h-full w-full object-cover"
+							class="block h-full w-full min-h-0 min-w-0 object-contain"
 						/>
 					</div>
 				{:else}
 					<div class="mb-3 aspect-square w-full rounded-md bg-stone-100"></div>
 				{/if}
-				<h3 class="font-semibold text-stone-900">{product.name ?? 'Untitled'}</h3>
-				{#if product.price != null}
-					<p class="mt-1 text-sm text-stone-600">${product.price}</p>
-				{/if}
+                <p class="text-sm text-stone-600">{product.category_name}</p>
+		
 			</article>
 		</a>
 	{/each}
