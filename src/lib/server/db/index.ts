@@ -1,0 +1,13 @@
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from './schema';
+import { env } from '$env/dynamic/private';
+
+if (!env.DB_URL) throw new Error('DB_URL is not set');
+
+const connectionString =
+	env.DB_SSL === 'true' ? `${env.DB_URL}?sslmode=require` : env.DB_URL;
+
+const client = postgres(connectionString, { max: 10 });
+
+export const db = drizzle(client, { schema });

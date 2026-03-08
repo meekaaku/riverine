@@ -1,0 +1,10 @@
+{
+	"/": [],
+	"/app": [],
+	"/app/list": [
+		"src/routes/app/list/+page.server.ts"
+	],
+	"/app/product/[id]": [
+		"src/routes/app/product/[id]/+page.server.ts"
+	]
+}
