@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { fail } from '@sveltejs/kit';
+import { uploadToSpaces } from '$lib/server/storage';
+import { fail, redirect, isRedirect } from '@sveltejs/kit';
+import { randomUUID } from 'crypto';
+import { env } from '$env/dynamic/private';
 
 export async function load({ params }) {
 	const [productResult, categoriesResult] = await Promise.all([
@@ -42,6 +45,62 @@ export async function load({ params }) {
 export const actions = {
 	default: async ({ request, params }) => {
 		const formData = await request.formData();
+		const intent = formData.get('intent')?.toString();
+
+		if (intent === 'delete') {
+			try {
+				await db.execute(sql`DELETE FROM rvr_product_image WHERE product_id = ${params.id}`);
+				await db.execute(sql`DELETE FROM rvr_product WHERE id = ${params.id}`);
+				redirect(303, '/app/list');
+			} catch (e) {
+				if (isRedirect(e)) throw e;
+				console.error('Delete failed:', e);
+				return fail(500, { error: 'Failed to delete product' });
+			}
+		}
+
+		if (intent === 'duplicate') {
+			try {
+				const [productResult] = await Promise.all([
+					db.execute(sql`
+						SELECT category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10
+						FROM rvr_product WHERE id = ${params.id}
+					`)
+				]);
+				const rows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
+				const src = rows[0] as Record<string, unknown> | undefined;
+				if (!src) return fail(404, { error: 'Product not found' });
+
+				const insertResult = await db.execute(sql`
+					INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
+					VALUES (${src.category_id}, ${src.requirements ?? null}, ${src.link ?? null}, ${src.description ?? null}, ${src.is_public ?? false}, ${src.floor_rent ?? false}, ${src.floor_7 ?? false}, ${src.floor_8 ?? false}, ${src.floor_9 ?? false}, ${src.floor_10 ?? false})
+					RETURNING id
+				`);
+				const insertRows = Array.isArray(insertResult) ? insertResult : (insertResult as { rows?: unknown[] }).rows ?? [];
+				const newProduct = insertRows[0] as { id: number } | undefined;
+				if (!newProduct?.id) return fail(500, { error: 'Failed to create duplicate' });
+
+				const imageRows = await db.execute(sql`
+					SELECT url FROM rvr_product_image WHERE product_id = ${params.id}
+				`);
+				const images = Array.isArray(imageRows) ? imageRows : (imageRows as { rows?: { url: string }[] }).rows ?? [];
+				for (const img of images) {
+					const url = (img as { url?: string }).url;
+					if (url) {
+						await db.execute(sql`
+							INSERT INTO rvr_product_image (product_id, url) VALUES (${newProduct.id}, ${url})
+						`);
+					}
+				}
+
+				redirect(303, `/app/product/${newProduct.id}`);
+			} catch (e) {
+				if (isRedirect(e)) throw e;
+				console.error('Duplicate failed:', e);
+				return fail(500, { error: 'Failed to duplicate product' });
+			}
+		}
+
 		const categoryId = formData.get('category_id')?.toString();
 		const requirements = formData.get('requirements')?.toString() ?? '';
 		const link = formData.get('link')?.toString() ?? '';
@@ -72,6 +131,24 @@ export const actions = {
 					floor_10 = ${floor10}
 				WHERE id = ${params.id}
 			`);
+
+			const photoFiles = formData.getAll('photos') as File[];
+			const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
+			for (const photo of validPhotos) {
+				try {
+					const ext = photo.name.split('.').pop() ?? 'jpg';
+					const pathPrefix = env.DO_PATH_PREFIX ?? '';
+					const key = `${pathPrefix}${randomUUID()}.${ext}`;
+					const url = await uploadToSpaces(photo, key, photo.type);
+					await db.execute(sql`
+						INSERT INTO rvr_product_image (product_id, url) VALUES (${params.id}, ${url})
+					`);
+				} catch (e) {
+					console.error('Upload failed:', e);
+					return fail(500, { error: 'Failed to upload photo' });
+				}
+			}
+
 			return { success: true };
 		} catch (e) {
 			console.error('Update failed:', e);
