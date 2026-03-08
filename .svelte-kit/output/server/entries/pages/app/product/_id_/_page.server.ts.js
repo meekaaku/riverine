@@ -1,6 +1,7 @@
+import { sql } from "drizzle-orm";
 import { d as db } from "../../../../../chunks/index3.js";
 async function load({ params }) {
-  const [product] = await db.$client`
+  const result = await db.execute(sql`
 		SELECT 
 			p.*, 
 			c.*, 
@@ -18,11 +19,12 @@ async function load({ params }) {
 		LEFT JOIN rvr_product_image rip ON p.id = rip.product_id
 		WHERE p.id = ${params.id}
 		GROUP BY p.id, c.id
-	`;
+	`);
+  const rows = Array.isArray(result) ? result : result.rows ?? [];
+  const product = rows[0];
   if (!product) {
     return { product: null };
   }
-  console.log({ product });
   return { product };
 }
 export {

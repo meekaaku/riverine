@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { d as db } from "../../../../../chunks/index3.js";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { b as private_env } from "../../../../../chunks/shared-server.js";
@@ -21,11 +22,13 @@ async function uploadToSpaces(file, key, contentType) {
   const client = getS3Client();
   const bucket = private_env.DO_SPACES_BUCKET ?? "haley";
   const fullKey = pathPrefix + key;
+  const arrayBuffer = await file.arrayBuffer();
+  const body = Buffer.from(arrayBuffer);
   await client.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: fullKey,
-      Body: file,
+      Body: body,
       ContentType: contentType ?? (file instanceof File ? file.type : "application/octet-stream"),
       ACL: "public-read"
     })
@@ -34,9 +37,8 @@ async function uploadToSpaces(file, key, contentType) {
   return `https://${bucket}.${region}.digitaloceanspaces.com/${fullKey}`;
 }
 async function load() {
-  const categories = await db.$client`
-		SELECT id, name FROM rvr_category ORDER BY name
-	`;
+  const result = await db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`);
+  const categories = Array.isArray(result) ? result : result.rows ?? [];
   return { categories };
 }
 const actions = {
@@ -57,11 +59,15 @@ const actions = {
     }
     const photoFiles = formData.getAll("photos");
     const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
+    if (validPhotos.length === 0) {
+      return fail(400, { error: "At least one photo is required" });
+    }
     const imageUrls = [];
     for (const photo of validPhotos) {
       try {
         const ext = photo.name.split(".").pop() ?? "jpg";
-        const key = `products/${randomUUID()}.${ext}`;
+        const pathPrefix2 = process.env.DO_PATH_PREFIX ?? "";
+        const key = `${pathPrefix2}${randomUUID()}.${ext}`;
         const url = await uploadToSpaces(photo, key, photo.type);
         imageUrls.push(url);
       } catch (e) {
@@ -70,17 +76,19 @@ const actions = {
       }
     }
     try {
-      const [product] = await db.$client`
+      const productResult = await db.execute(sql`
 				INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
-				VALUES (${parseInt(categoryId, 10)}, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
+				VALUES (${categoryId}, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
 				RETURNING id
-			`;
+			`);
+      const productRows = Array.isArray(productResult) ? productResult : productResult.rows ?? [];
+      const product = productRows[0];
       if (imageUrls.length > 0 && product?.id) {
         for (const url of imageUrls) {
-          await db.$client`
+          await db.execute(sql`
 						INSERT INTO rvr_product_image (product_id, url)
 						VALUES (${product.id}, ${url})
-					`;
+					`);
         }
       }
       redirect(303, `/app/product/${product.id}`);

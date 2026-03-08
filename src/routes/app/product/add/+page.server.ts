@@ -1,12 +1,12 @@
+import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { uploadToSpaces } from '$lib/server/storage';
 import { fail, redirect } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
 
 export async function load() {
-	const categories = await db.$client`
-		SELECT id, name FROM rvr_category ORDER BY name
-	`;
+	const result = await db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`);
+	const categories = Array.isArray(result) ? result : (result as { rows?: unknown[] }).rows ?? [];
 	return { categories };
 }
 
@@ -30,6 +30,11 @@ export const actions = {
 
 		const photoFiles = formData.getAll('photos') as File[];
 		const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
+
+		if (validPhotos.length === 0) {
+			return fail(400, { error: 'At least one photo is required' });
+		}
+
 		const imageUrls: string[] = [];
 
 		for (const photo of validPhotos) {
@@ -46,21 +51,21 @@ export const actions = {
 		}
 
 		try {
-			// Yes, this prevents SQL injection because the db.$client template tag
-			// uses parameterized queries – variables inside ${...} are properly escaped.
-			// Here's the (unchanged) safe code:
-			const [product] = await db.$client`
+			const productResult = await db.execute(sql`
 				INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
 				VALUES (${categoryId}, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
 				RETURNING id
-			`;
+			`);
+			const productRows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
+			const product: any = productRows[0];
+            console.log({product});
 
 			if (imageUrls.length > 0 && product?.id) {
 				for (const url of imageUrls) {
-					await db.$client`
+					await db.execute(sql`
 						INSERT INTO rvr_product_image (product_id, url)
 						VALUES (${product.id}, ${url})
-					`;
+					`);
 				}
 			}
 

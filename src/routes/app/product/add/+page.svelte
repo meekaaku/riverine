@@ -87,7 +87,7 @@
 	<form method="POST" enctype="multipart/form-data" class="space-y-6" onsubmit={() => syncPhotosToInput()}>
 		<!-- Photo upload -->
 		<div>
-			<label for="photos" class="block text-sm font-medium text-stone-700 mb-2">Photos</label>
+			<label for="photos" class="block text-sm font-medium text-stone-700 mb-2">Photos <span class="text-red-500">*</span></label>
 			<div
 				role="button"
 				tabindex="0"
@@ -259,7 +259,8 @@
 
 		<button
 			type="submit"
-			class="w-full rounded-lg bg-stone-900 px-4 py-3 text-white font-medium hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
+			disabled={photos.length === 0}
+			class="w-full rounded-lg bg-stone-900 px-4 py-3 text-white font-medium hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 		>
 			Add product
 		</button>
