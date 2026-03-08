@@ -10,7 +10,7 @@ export async function load() {
 			COALESCE(
 				(SELECT JSON_AGG(JSON_BUILD_OBJECT('id', rip.id, 'url', rip.url))
 				 FROM rvr_product_image rip
-				 WHERE rip.product_id = p.id),
+				 WHERE rip.product_id = p.id AND rip.deleted_at IS NULL),
 				'[]'::json
 			) AS images
 		FROM rvr_product p

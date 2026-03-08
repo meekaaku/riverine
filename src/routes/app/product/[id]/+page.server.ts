@@ -23,7 +23,7 @@ export async function load({ params }) {
 				) AS images
 			FROM rvr_product p
 			INNER JOIN rvr_category c ON p.category_id = c.id
-			LEFT JOIN rvr_product_image rip ON p.id = rip.product_id
+			LEFT JOIN rvr_product_image rip ON p.id = rip.product_id AND rip.deleted_at IS NULL
 			WHERE p.id = ${params.id}
 			GROUP BY p.id, c.id
 		`),
@@ -47,9 +47,21 @@ export const actions = {
 		const formData = await request.formData();
 		const intent = formData.get('intent')?.toString();
 
+		if (intent === 'remove_image') {
+			const imageId = formData.get('image_id')?.toString();
+			if (!imageId) return fail(400, { error: 'Image ID required' });
+			try {
+				await db.execute(sql`UPDATE rvr_product_image SET deleted_at = NOW() WHERE id = ${imageId} AND product_id = ${params.id} AND deleted_at IS NULL`);
+				return { success: true };
+			} catch (e) {
+				console.error('Remove image failed:', e);
+				return fail(500, { error: 'Failed to remove photo' });
+			}
+		}
+
 		if (intent === 'delete') {
 			try {
-				await db.execute(sql`DELETE FROM rvr_product_image WHERE product_id = ${params.id}`);
+				await db.execute(sql`UPDATE rvr_product_image SET deleted_at = NOW() WHERE product_id = ${params.id}`);
 				await db.execute(sql`DELETE FROM rvr_product WHERE id = ${params.id}`);
 				redirect(303, '/app/list?deleted=1');
 			} catch (e) {
@@ -81,7 +93,7 @@ export const actions = {
 				if (!newProduct?.id) return fail(500, { error: 'Failed to create duplicate' });
 
 				const imageRows = await db.execute(sql`
-					SELECT url FROM rvr_product_image WHERE product_id = ${params.id}
+					SELECT url FROM rvr_product_image WHERE product_id = ${params.id} AND deleted_at IS NULL
 				`);
 				const images = Array.isArray(imageRows) ? imageRows : (imageRows as { rows?: { url: string }[] }).rows ?? [];
 				for (const img of images) {

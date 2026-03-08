@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	let { data } = $props();
@@ -30,8 +30,22 @@
 	let showSuccess = $state(false);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement | null = null;
+	let lightboxUrl = $state<string | null>(null);
+	let removingImageId = $state<string | number | null>(null);
 
 	const isAnyLoading = $derived(isSubmitting || isDuplicating || isDeleting);
+
+	function openLightbox(url: string) {
+		lightboxUrl = url;
+	}
+
+	function closeLightbox() {
+		lightboxUrl = null;
+	}
+
+	function handleLightboxKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') closeLightbox();
+	}
 
 	function addFiles(files: FileList | File[] | null) {
 		if (!files) return;
@@ -97,7 +111,47 @@
 			return () => clearTimeout(t);
 		}
 	});
+
+	$effect(() => {
+		if (lightboxUrl) {
+			const handler = (e: KeyboardEvent) => handleLightboxKeydown(e);
+			window.addEventListener('keydown', handler);
+			document.body.style.overflow = 'hidden';
+			return () => {
+				window.removeEventListener('keydown', handler);
+				document.body.style.overflow = '';
+			};
+		}
+	});
 </script>
+
+<!-- Lightbox modal -->
+{#if lightboxUrl}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="Image preview"
+		tabindex="-1"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+		onclick={closeLightbox}
+		onkeydown={handleLightboxKeydown}
+	>
+		<button
+			type="button"
+			class="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+			onclick={closeLightbox}
+			aria-label="Close"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M18 6L6 18M6 6l12 12" />
+			</svg>
+		</button>
+		<div class="max-h-[90vh] max-w-[90vw] cursor-default" onclick={(e) => e.stopPropagation()}>
+			<img src={lightboxUrl} alt="Product" class="h-full w-full object-contain" />
+		</div>
+	</div>
+{/if}
 
 {#if !product}
 	<p class="p-4 text-stone-600">Product not found.</p>
@@ -201,6 +255,74 @@
 			</div>
 		</div>
 
+		<!-- Existing photos (outside form - each has its own remove form) -->
+		{#if Array.isArray(images) && images.length > 0}
+			<div class="mb-4">
+				<label class="block text-xs font-medium text-stone-500 mb-2">Current photos</label>
+				<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+					{#each images as img, i (img?.id ?? img?.url ?? i)}
+						<div class="group relative aspect-square overflow-hidden rounded-lg bg-stone-100">
+							<button
+								type="button"
+								class="absolute inset-0 flex items-center justify-center cursor-zoom-in disabled:pointer-events-none"
+								disabled={removingImageId == img.id}
+								onclick={() => openLightbox(img.url)}
+							>
+								<img src={img.url} alt="Product" class="h-full w-full object-contain" />
+							</button>
+							{#if removingImageId == img.id}
+								<div class="absolute inset-0 flex items-center justify-center bg-stone-900/50 z-20">
+									<svg class="h-8 w-8 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+								</div>
+							{/if}
+							<form
+								method="POST"
+								class="absolute top-0.5 right-0.5 z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+								use:enhance={({ formData }) => {
+									removingImageId = formData.get('image_id')?.toString() ?? null;
+									return async ({ result, update }) => {
+										try {
+											await update();
+											if (result.type === 'success' && result.data?.success) {
+												await invalidateAll();
+											}
+										} finally {
+											removingImageId = null;
+										}
+									};
+								}}
+							>
+								<input type="hidden" name="intent" value="remove_image" />
+								<input type="hidden" name="image_id" value={img.id} />
+								<button
+									type="submit"
+									disabled={removingImageId == img.id}
+									class="rounded-full bg-stone-800/80 p-1 text-white hover:bg-stone-900 disabled:opacity-70"
+									aria-label="Remove photo"
+								>
+									{#if removingImageId == img.id}
+										<svg class="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+										</svg>
+									{:else}
+										<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M18 6L6 18M6 6l12 12" />
+										</svg>
+									{/if}
+								</button>
+							</form>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<div class="mb-4 aspect-square max-h-48 w-full max-w-xs rounded-lg bg-stone-100"></div>
+		{/if}
+
 		<form
 			id="product-form"
 			method="POST"
@@ -219,22 +341,6 @@
 				};
 			}}
 		>
-			<!-- Existing photos -->
-			{#if Array.isArray(images) && images.length > 0}
-				<div>
-					<label class="block text-xs font-medium text-stone-500 mb-2">Current photos</label>
-					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-						{#each images as img, i (img?.id ?? img?.url ?? i)}
-							<div class="aspect-square overflow-hidden rounded-lg bg-stone-100">
-								<img src={img.url} alt="Product" class="h-full w-full object-contain" />
-							</div>
-						{/each}
-					</div>
-				</div>
-			{:else}
-				<div class="aspect-square max-h-48 w-full max-w-xs rounded-lg bg-stone-100"></div>
-			{/if}
-
 			<!-- Add more photos -->
 			<div>
 				<label class="block text-xs font-medium text-stone-500 mb-2">Add more photos</label>
@@ -253,11 +359,17 @@
 						<div class="min-h-0 flex-1 overflow-y-auto p-3">
 							<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
 								{#each newPhotos as photo (photo.id)}
-									<div class="relative aspect-square overflow-hidden rounded-lg bg-stone-100">
-										<img src={photo.preview} alt="Preview" class="h-full w-full object-contain" />
+									<div class="group relative aspect-square overflow-hidden rounded-lg bg-stone-100">
 										<button
 											type="button"
-											class="absolute top-0.5 right-0.5 rounded-full bg-stone-800/80 text-white p-1 hover:bg-stone-900"
+											class="absolute inset-0 flex items-center justify-center"
+											onclick={() => openLightbox(photo.preview)}
+										>
+											<img src={photo.preview} alt="Preview" class="h-full w-full object-contain" />
+										</button>
+										<button
+											type="button"
+											class="absolute top-0.5 right-0.5 z-10 rounded-full bg-stone-800/80 text-white p-1 hover:bg-stone-900"
 											onclick={() => removePhoto(photo.id)}
 											aria-label="Remove photo"
 										>
