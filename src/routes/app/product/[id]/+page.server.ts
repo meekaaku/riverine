@@ -51,7 +51,7 @@ export const actions = {
 			try {
 				await db.execute(sql`DELETE FROM rvr_product_image WHERE product_id = ${params.id}`);
 				await db.execute(sql`DELETE FROM rvr_product WHERE id = ${params.id}`);
-				redirect(303, '/app/list');
+				redirect(303, '/app/list?deleted=1');
 			} catch (e) {
 				if (isRedirect(e)) throw e;
 				console.error('Delete failed:', e);
@@ -93,7 +93,7 @@ export const actions = {
 					}
 				}
 
-				redirect(303, `/app/product/${newProduct.id}`);
+				redirect(303, `/app/product/${newProduct.id}?duplicated=1`);
 			} catch (e) {
 				if (isRedirect(e)) throw e;
 				console.error('Duplicate failed:', e);

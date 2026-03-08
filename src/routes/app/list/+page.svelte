@@ -1,10 +1,24 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+
 	let { data } = $props();
 
 	const products = $derived<any>(data?.products ?? []);
+	const showDeleted = $derived($page.url.searchParams.get('deleted') === '1');
+
+	$effect(() => {
+		if (showDeleted) {
+			const t = setTimeout(() => goto('/app/list', { replaceState: true }), 3000);
+			return () => clearTimeout(t);
+		}
+	});
 </script>
 
 <div class="p-4">
+	{#if showDeleted}
+		<p class="mb-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-800">Product deleted successfully.</p>
+	{/if}
 	<a
 		href="/app/product/add"
 		class="mb-4 inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"

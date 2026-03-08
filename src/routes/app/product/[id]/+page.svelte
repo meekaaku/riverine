@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	let { data } = $props();
@@ -9,6 +10,7 @@
 	const isChecked = (v: unknown) => v === true || v === 't' || v === 1;
 	const error = $derived($page.form?.error);
 	const success = $derived($page.form?.success);
+	const showDuplicated = $derived($page.url.searchParams.get('duplicated') === '1');
 
 	const images = $derived(
 		product?.images
@@ -23,9 +25,13 @@
 
 	let newPhotos = $state<PhotoItem[]>([]);
 	let isSubmitting = $state(false);
+	let isDuplicating = $state(false);
+	let isDeleting = $state(false);
 	let showSuccess = $state(false);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement | null = null;
+
+	const isAnyLoading = $derived(isSubmitting || isDuplicating || isDeleting);
 
 	function addFiles(files: FileList | File[] | null) {
 		if (!files) return;
@@ -84,6 +90,13 @@
 			return () => clearTimeout(t);
 		}
 	});
+
+	$effect(() => {
+		if (showDuplicated) {
+			const t = setTimeout(() => goto($page.url.pathname, { replaceState: true }), 3000);
+			return () => clearTimeout(t);
+		}
+	});
 </script>
 
 {#if !product}
@@ -94,30 +107,66 @@
 			<a href="/app/list" class="text-sm text-stone-600 hover:text-stone-900">← Back</a>
 			<div class="flex flex-col items-end gap-1">
 				<div class="flex items-center gap-2">
-					<form method="POST" class="inline" use:enhance>
+					<form
+						method="POST"
+						class="inline"
+						use:enhance={() => {
+							isDuplicating = true;
+							return async ({ result, update }) => {
+								await update();
+								isDuplicating = false;
+							};
+						}}
+					>
 						<input type="hidden" name="intent" value="duplicate" />
 						<button
 							type="submit"
-							disabled={isSubmitting}
-							class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+							disabled={isAnyLoading}
+							class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50 inline-flex items-center gap-1.5"
 						>
-							Duplicate
+							{#if isDuplicating}
+								<svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Duplicating…
+							{:else}
+								Duplicate
+							{/if}
 						</button>
 					</form>
-					<form method="POST" class="inline" use:enhance>
+					<form
+						method="POST"
+						class="inline"
+						use:enhance={() => {
+							isDeleting = true;
+							return async ({ result, update }) => {
+								await update();
+								isDeleting = false;
+							};
+						}}
+					>
 						<input type="hidden" name="intent" value="delete" />
 						<button
 							type="submit"
-							disabled={isSubmitting}
-							class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+							disabled={isAnyLoading}
+							class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 inline-flex items-center gap-1.5"
 						>
-							Delete
+							{#if isDeleting}
+								<svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Deleting…
+							{:else}
+								Delete
+							{/if}
 						</button>
 					</form>
 					<button
 						form="product-form"
 						type="submit"
-						disabled={isSubmitting}
+						disabled={isAnyLoading}
 						class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
 					>
 						{#if isSubmitting}
@@ -134,10 +183,19 @@
 					</button>
 				</div>
 				<div class="min-h-6 w-full text-right text-sm">
-					{#if showSuccess}
+					{#if showDuplicated}
+						<span class="text-green-600">Product duplicated successfully</span>
+					{:else if showSuccess}
 						<span class="text-green-600">Saved successfully</span>
 					{:else if error}
 						<span class="text-red-600">{error}</span>
+					{/if}
+				</div>
+				<div class="min-h-5 w-full text-right text-xs text-stone-500">
+					{#if isDuplicating}
+						<span>Duplicating product…</span>
+					{:else if isDeleting}
+						<span>Deleting product…</span>
 					{/if}
 				</div>
 			</div>
@@ -331,7 +389,7 @@
 				<button
 					form="product-form"
 					type="submit"
-					disabled={isSubmitting}
+					disabled={isAnyLoading}
 					class="w-full rounded-lg bg-stone-900 px-4 py-3 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
 				>
 					{#if isSubmitting}
