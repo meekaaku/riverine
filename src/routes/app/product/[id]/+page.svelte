@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	let { data } = $props();
 
 	const product = $derived<any>(data?.product);
 	const categories = $derived<any[]>(data?.categories ?? []);
+	const isChecked = (v: unknown) => v === true || v === 't' || v === 1;
 	const error = $derived($page.form?.error);
 	const success = $derived($page.form?.success);
 
@@ -72,12 +72,9 @@
 			class="space-y-4"
 			use:enhance={() => {
 				isSubmitting = true;
-				return async ({ result, update }) => {
-					await update();
+				return async ({ update }) => {
+					await update({ reset: false });
 					isSubmitting = false;
-					if (result.type === 'success' && result.data?.success) {
-						await invalidateAll();
-					}
 				};
 			}}
 		>
@@ -138,27 +135,27 @@
 				<span class="block text-xs font-medium text-stone-500 mb-2">Options</span>
 				<div class="flex flex-wrap gap-x-6 gap-y-2">
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="is_public" class="rounded border-stone-300" checked={!!product?.is_public} />
+						<input type="checkbox" name="is_public" class="rounded border-stone-300" checked={isChecked(product?.is_public)} />
 						Is public
 					</label>
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="floor_rent" class="rounded border-stone-300" checked={!!product?.floor_rent} />
+						<input type="checkbox" name="floor_rent" class="rounded border-stone-300" checked={isChecked(product?.floor_rent)} />
 						Floor rent
 					</label>
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="floor_7" class="rounded border-stone-300" checked={!!product?.floor_7} />
+						<input type="checkbox" name="floor_7" class="rounded border-stone-300" checked={isChecked(product?.floor_7)} />
 						Floor 7
 					</label>
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="floor_8" class="rounded border-stone-300" checked={!!product?.floor_8} />
+						<input type="checkbox" name="floor_8" class="rounded border-stone-300" checked={isChecked(product?.floor_8)} />
 						Floor 8
 					</label>
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="floor_9" class="rounded border-stone-300" checked={!!product?.floor_9} />
+						<input type="checkbox" name="floor_9" class="rounded border-stone-300" checked={isChecked(product?.floor_9)} />
 						Floor 9
 					</label>
 					<label class="flex items-center gap-2 cursor-pointer text-sm text-stone-700">
-						<input type="checkbox" name="floor_10" class="rounded border-stone-300" checked={!!product?.floor_10} />
+						<input type="checkbox" name="floor_10" class="rounded border-stone-300" checked={isChecked(product?.floor_10)} />
 						Floor 10
 					</label>
 				</div>
