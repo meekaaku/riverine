@@ -1,1 +1,0 @@
-import{a as i,f as s}from"../chunks/PYfKw6-A.js";import{c as m,r as n}from"../chunks/pArACxew.js";import{s as e}from"../chunks/859EliY4.js";var p=s('<div class="container mx-auto"><!></div>');function v(r,a){var o=p(),t=m(o);e(t,()=>a.children),n(o),i(r,o)}export{v as component};

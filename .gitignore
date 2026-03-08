@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+
+# SvelteKit
+.svelte-kit
+build
+
+# Build output
+dist
+.output
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Deployment
+.vercel
+.vercel_build_output
+.netlify
+.cloudflare
+
+# Testing
+test-results/
+.test-tmp
+playwright-report/
+playwright/.cache/
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Debug
+.pnpm-debug.log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.turbo
+symlink-from

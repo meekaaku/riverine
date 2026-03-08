@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { uploadToSpaces } from '$lib/server/storage';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
 
 export async function load() {
@@ -71,6 +71,7 @@ export const actions = {
 
 			redirect(303, `/app/product/${product.id}`);
 		} catch (e) {
+			if (isRedirect(e)) throw e;
 			console.error('Insert failed:', e);
 			return fail(500, { error: 'Failed to create product' });
 		}

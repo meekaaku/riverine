@@ -1,7 +1,7 @@
 <script lang="ts">
 	let { data } = $props();
 
-	const products = $derived(data?.products ?? []);
+	const products = $derived<any>(data?.products ?? []);
 </script>
 
 <div class="p-4">
@@ -12,29 +12,28 @@
 		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 			<path d="M12 5v14M5 12h14" />
 		</svg>
-		Add product
+		Add
 	</a>
-	<div class="grid grid-cols-2 gap-4">
-	{#each products as product}
-		{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
-		{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
-		<a href="/app/product/{product.id}" class="block min-w-0">
-			<article class="rounded-lg border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-				{#if imageUrl}
-					<div class="mb-3 aspect-square w-full min-h-0 overflow-hidden rounded-md">
-						<img
-							src={imageUrl}
-							alt={product.name ?? 'Product'}
-							class="block h-full w-full min-h-0 min-w-0 object-contain"
-						/>
-					</div>
-				{:else}
-					<div class="mb-3 aspect-square w-full rounded-md bg-stone-100"></div>
-				{/if}
-                <p class="text-sm text-stone-600">{product.category_name}</p>
-		
-			</article>
-		</a>
-	{/each}
+	<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+		{#each products as product}
+			{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
+			{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
+			<a href="/app/product/{product.id}" class="block min-w-0">
+				<article class="flex h-64 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md md:h-56">
+					{#if imageUrl}
+						<div class="min-h-0 flex-1 overflow-hidden rounded-t-lg">
+							<img
+								src={imageUrl}
+								alt={product.category_name ?? 'Product'}
+								class="h-full w-full object-contain"
+							/>
+						</div>
+					{:else}
+						<div class="min-h-0 flex-1 rounded-t-lg bg-stone-100"></div>
+					{/if}
+					<p class="shrink-0 px-3 py-2 text-sm text-stone-600">{product.category_name}</p>
+				</article>
+			</a>
+		{/each}
 	</div>
 </div>

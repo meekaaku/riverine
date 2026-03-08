@@ -8,6 +8,6 @@ if (!env.DB_URL) throw new Error('DB_URL is not set');
 const connectionString =
 	env.DB_SSL === 'true' ? `${env.DB_URL}?sslmode=require` : env.DB_URL;
 
-const client = postgres(connectionString, { max: 10 });
+const client = postgres(connectionString, { max: 10, connect_timeout: 60 });
 
 export const db = drizzle(client, { schema });
