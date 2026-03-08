@@ -34,7 +34,7 @@
 {#if !product}
 	<p class="p-4 text-stone-600">Product not found.</p>
 {:else}
-	<div class="p-4 max-w-xl">
+	<div class="mx-auto max-w-xl p-4">
 		<div class="mb-4 flex items-start justify-between gap-4">
 			<a href="/app/list" class="text-sm text-stone-600 hover:text-stone-900">← Back</a>
 			<div class="flex flex-col items-end gap-1">
