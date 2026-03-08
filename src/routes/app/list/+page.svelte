@@ -4,7 +4,17 @@
 	const products = $derived(data?.products ?? []);
 </script>
 
-<div class="grid grid-cols-2 gap-4 p-4">
+<div class="p-4">
+	<a
+		href="/app/product/add"
+		class="mb-4 inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+	>
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M12 5v14M5 12h14" />
+		</svg>
+		Add product
+	</a>
+	<div class="grid grid-cols-2 gap-4">
 	{#each products as product}
 		{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
 		{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
@@ -26,4 +36,5 @@
 			</article>
 		</a>
 	{/each}
+	</div>
 </div>

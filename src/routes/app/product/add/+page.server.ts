@@ -1,0 +1,73 @@
+import { db } from '$lib/server/db';
+import { uploadToSpaces } from '$lib/server/storage';
+import { fail, redirect } from '@sveltejs/kit';
+import { randomUUID } from 'crypto';
+
+export async function load() {
+	const categories = await db.$client`
+		SELECT id, name FROM rvr_category ORDER BY name
+	`;
+	return { categories };
+}
+
+export const actions = {
+	default: async ({ request }) => {
+		const formData = await request.formData();
+		const categoryId = formData.get('category_id');
+		const requirements = formData.get('requirements')?.toString() ?? '';
+		const link = formData.get('link')?.toString() ?? '';
+		const description = formData.get('description')?.toString() ?? '';
+		const isPublic = formData.get('is_public') === 'on';
+		const floorRent = formData.get('floor_rent') === 'on';
+		const floor7 = formData.get('floor_7') === 'on';
+		const floor8 = formData.get('floor_8') === 'on';
+		const floor9 = formData.get('floor_9') === 'on';
+		const floor10 = formData.get('floor_10') === 'on';
+
+		if (!categoryId || typeof categoryId !== 'string') {
+			return fail(400, { error: 'Please select a category' });
+		}
+
+		const photoFiles = formData.getAll('photos') as File[];
+		const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
+		const imageUrls: string[] = [];
+
+		for (const photo of validPhotos) {
+			try {
+				const ext = photo.name.split('.').pop() ?? 'jpg';
+				const pathPrefix = process.env.DO_PATH_PREFIX ?? '';
+				const key = `${pathPrefix}${randomUUID()}.${ext}`;
+				const url = await uploadToSpaces(photo, key, photo.type);
+				imageUrls.push(url);
+			} catch (e) {
+				console.error('Upload failed:', e);
+				return fail(500, { error: 'Failed to upload photo' });
+			}
+		}
+
+		try {
+			// Yes, this prevents SQL injection because the db.$client template tag
+			// uses parameterized queries – variables inside ${...} are properly escaped.
+			// Here's the (unchanged) safe code:
+			const [product] = await db.$client`
+				INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
+				VALUES (${categoryId}, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
+				RETURNING id
+			`;
+
+			if (imageUrls.length > 0 && product?.id) {
+				for (const url of imageUrls) {
+					await db.$client`
+						INSERT INTO rvr_product_image (product_id, url)
+						VALUES (${product.id}, ${url})
+					`;
+				}
+			}
+
+			redirect(303, `/app/product/${product.id}`);
+		} catch (e) {
+			console.error('Insert failed:', e);
+			return fail(500, { error: 'Failed to create product' });
+		}
+	}
+};
