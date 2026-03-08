@@ -18,6 +18,13 @@
 		{#each products as product}
 			{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
 			{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
+			{@const floors = [
+				product.floor_rent && 'Rent',
+				product.floor_7 && '7',
+				product.floor_8 && '8',
+				product.floor_9 && '9',
+				product.floor_10 && '10'
+			].filter(Boolean)}
 			<a href="/app/product/{product.id}" class="block min-w-0">
 				<article class="flex h-64 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md md:h-56">
 					{#if imageUrl}
@@ -31,7 +38,12 @@
 					{:else}
 						<div class="min-h-0 flex-1 rounded-t-lg bg-stone-100"></div>
 					{/if}
-					<p class="shrink-0 px-3 py-2 text-sm text-stone-600">{product.category_name}</p>
+					<div class="shrink-0 px-3 py-2">
+						<p class="text-sm text-stone-600">{product.category_name}</p>
+						{#if floors.length > 0}
+							<p class="text-xs text-stone-400">{floors.join(', ')}</p>
+						{/if}
+					</div>
 				</article>
 			</a>
 		{/each}

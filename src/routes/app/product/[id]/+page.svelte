@@ -116,7 +116,7 @@
 			<div>
 				<label for="link" class="block text-xs font-medium text-stone-500">Link</label>
 				<input
-					type="url"
+					type="text"
 					id="link"
 					name="link"
 					value={product?.link ?? ''}
