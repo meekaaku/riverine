@@ -15,6 +15,7 @@ export async function load() {
 			) AS images
 		FROM rvr_product p
 		INNER JOIN rvr_category c ON p.category_id = c.id
+		WHERE p.deleted_at IS NULL
 	`);
 
 	return { products: Array.isArray(products) ? products : (products as { rows?: unknown[] }).rows ?? [] };

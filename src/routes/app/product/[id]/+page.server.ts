@@ -24,7 +24,7 @@ export async function load({ params }) {
 			FROM rvr_product p
 			INNER JOIN rvr_category c ON p.category_id = c.id
 			LEFT JOIN rvr_product_image rip ON p.id = rip.product_id AND rip.deleted_at IS NULL
-			WHERE p.id = ${params.id}
+			WHERE p.id = ${params.id} AND p.deleted_at IS NULL
 			GROUP BY p.id, c.id
 		`),
 		db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`)
@@ -62,7 +62,7 @@ export const actions = {
 		if (intent === 'delete') {
 			try {
 				await db.execute(sql`UPDATE rvr_product_image SET deleted_at = NOW() WHERE product_id = ${params.id}`);
-				await db.execute(sql`DELETE FROM rvr_product WHERE id = ${params.id}`);
+				await db.execute(sql`UPDATE rvr_product SET deleted_at = NOW() WHERE id = ${params.id} AND deleted_at IS NULL`);
 				redirect(303, '/app/list?deleted=1');
 			} catch (e) {
 				if (isRedirect(e)) throw e;
@@ -76,7 +76,7 @@ export const actions = {
 				const [productResult] = await Promise.all([
 					db.execute(sql`
 						SELECT category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10
-						FROM rvr_product WHERE id = ${params.id}
+						FROM rvr_product WHERE id = ${params.id} AND deleted_at IS NULL
 					`)
 				]);
 				const rows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
@@ -141,7 +141,7 @@ export const actions = {
 					floor_8 = ${floor8},
 					floor_9 = ${floor9},
 					floor_10 = ${floor10}
-				WHERE id = ${params.id}
+				WHERE id = ${params.id} AND deleted_at IS NULL
 			`);
 
 			const photoFiles = formData.getAll('photos') as File[];
