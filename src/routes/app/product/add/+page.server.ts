@@ -40,8 +40,7 @@ export const actions = {
 		for (const photo of validPhotos) {
 			try {
 				const ext = photo.name.split('.').pop() ?? 'jpg';
-				const pathPrefix = process.env.DO_PATH_PREFIX ?? '';
-				const key = `${pathPrefix}${randomUUID()}.${ext}`;
+				const key = `${randomUUID()}.${ext}`;
 				const url = await uploadToSpaces(photo, key, photo.type);
 				imageUrls.push(url);
 			} catch (e) {

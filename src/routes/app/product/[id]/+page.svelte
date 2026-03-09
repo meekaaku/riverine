@@ -258,7 +258,7 @@
 		<!-- Existing photos (outside form - each has its own remove form) -->
 		{#if Array.isArray(images) && images.length > 0}
 			<div class="mb-4">
-				<label class="block text-xs font-medium text-stone-500 mb-2">Current photos</label>
+				<label class="block text-xs font-medium text-stone-500 mb-2">Current photos (click to enlarge)</label>
 				<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
 					{#each images as img, i (img?.id ?? img?.url ?? i)}
 						<div class="group relative aspect-square overflow-hidden rounded-lg bg-stone-100">

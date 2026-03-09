@@ -3,7 +3,6 @@ import { db } from '$lib/server/db';
 import { uploadToSpaces } from '$lib/server/storage';
 import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
-import { env } from '$env/dynamic/private';
 
 export async function load({ params }) {
 	const [productResult, categoriesResult] = await Promise.all([
@@ -149,8 +148,7 @@ export const actions = {
 			for (const photo of validPhotos) {
 				try {
 					const ext = photo.name.split('.').pop() ?? 'jpg';
-					const pathPrefix = env.DO_PATH_PREFIX ?? '';
-					const key = `${pathPrefix}${randomUUID()}.${ext}`;
+					const key = `${randomUUID()}.${ext}`;
 					const url = await uploadToSpaces(photo, key, photo.type);
 					await db.execute(sql`
 						INSERT INTO rvr_product_image (product_id, url) VALUES (${params.id}, ${url})
