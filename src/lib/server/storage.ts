@@ -35,7 +35,12 @@ export async function uploadToSpaces(
 			Bucket: bucket,
 			Key: fullKey,
 			Body: body,
-			ContentType: contentType ?? (file instanceof File ? file.type : 'application/octet-stream'),
+			ContentType:
+				contentType?.startsWith('image/')
+					? contentType
+					: file instanceof File && file.type?.startsWith('image/')
+						? file.type
+						: 'image/jpeg',
 			ACL: 'public-read'
 		})
 	);

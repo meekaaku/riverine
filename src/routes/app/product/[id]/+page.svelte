@@ -49,7 +49,9 @@
 
 	function addFiles(files: FileList | File[] | null) {
 		if (!files) return;
-		const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
+		const fileArray = Array.from(files).filter(
+			(f) => f.type.startsWith('image/') || (f.type === '' && f.size > 0)
+		);
 		for (const file of fileArray) {
 			const reader = new FileReader();
 			reader.onload = () => {
@@ -86,15 +88,6 @@
 
 	function removePhoto(id: string) {
 		newPhotos = newPhotos.filter((p) => p.id !== id);
-	}
-
-	function syncPhotosToInput() {
-		if (!fileInput) return;
-		const dt = new DataTransfer();
-		for (const photo of newPhotos) {
-			dt.items.add(photo.file);
-		}
-		fileInput.files = dt.files;
 	}
 
 	$effect(() => {
@@ -328,8 +321,14 @@
 			method="POST"
 			enctype="multipart/form-data"
 			class="space-y-4"
-			onsubmit={() => syncPhotosToInput()}
-			use:enhance={() => {
+			use:enhance={({ formData }) => {
+				formData.delete('photos');
+				for (const photo of newPhotos) {
+					const f = photo.file;
+					const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
+					const type = f.type || 'image/jpeg';
+					formData.append('photos', new File([f], name, { type }));
+				}
 				isSubmitting = true;
 				return async ({ result, update }) => {
 					await update({ reset: false });

@@ -16,7 +16,9 @@
 
 	function addFiles(files: FileList | File[] | null) {
 		if (!files) return;
-		const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
+		const fileArray = Array.from(files).filter(
+			(f) => f.type.startsWith('image/') || (f.type === '' && f.size > 0)
+		);
 		for (const file of fileArray) {
 			const reader = new FileReader();
 			reader.onload = () => {
@@ -48,6 +50,7 @@
 	}
 
 	function openFilePicker() {
+		fileInput?.removeAttribute('capture');
 		fileInput?.click();
 	}
 
@@ -67,15 +70,6 @@
 	function clearAllPhotos() {
 		photos = [];
 		if (fileInput) fileInput.value = '';
-	}
-
-	function syncPhotosToInput() {
-		if (!fileInput) return;
-		const dt = new DataTransfer();
-		for (const photo of photos) {
-			dt.items.add(photo.file);
-		}
-		fileInput.files = dt.files;
 	}
 
 	function addClipboardItems(items: DataTransferItemList) {
@@ -114,8 +108,16 @@
 		method="POST"
 		enctype="multipart/form-data"
 		class="space-y-6"
-		onsubmit={() => syncPhotosToInput()}
-		use:enhance={() => {
+		use:enhance={({ formData }) => {
+			// Replace photos with our state - camera-captured files often have empty name/type
+			// and DataTransfer can fail on some mobile browsers, so we inject files directly
+			formData.delete('photos');
+			for (const photo of photos) {
+				const f = photo.file;
+				const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
+				const type = f.type || 'image/jpeg';
+				formData.append('photos', new File([f], name, { type }));
+			}
 			isSubmitting = true;
 			return async ({ update }) => {
 				await update();

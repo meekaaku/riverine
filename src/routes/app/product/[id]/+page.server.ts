@@ -147,9 +147,10 @@ export const actions = {
 			const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
 			for (const photo of validPhotos) {
 				try {
-					const ext = photo.name.split('.').pop() ?? 'jpg';
+					const ext = (photo.name?.split('.').pop() || 'jpg').replace(/[^a-z0-9]/i, '') || 'jpg';
 					const key = `${randomUUID()}.${ext}`;
-					const url = await uploadToSpaces(photo, key, photo.type);
+					const contentType = photo.type?.startsWith('image/') ? photo.type : 'image/jpeg';
+					const url = await uploadToSpaces(photo, key, contentType);
 					await db.execute(sql`
 						INSERT INTO rvr_product_image (product_id, url) VALUES (${params.id}, ${url})
 					`);
