@@ -1,16 +1,24 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	let { data } = $props();
 
+	const MAX_PHOTOS_BYTES = 10 * 1024 * 1024; // 10MB
 	const product = $derived<any>(data?.product);
 	const categories = $derived<any[]>(data?.categories ?? []);
 	const isChecked = (v: unknown) => v === true || v === 't' || v === 1;
 	const error = $derived($page.form?.error);
 	const success = $derived($page.form?.success);
 	const showDuplicated = $derived($page.url.searchParams.get('duplicated') === '1');
+
+	type PhotoItem = { id: string; preview: string; file: File };
+
+	let newPhotos = $state<PhotoItem[]>([]);
+	const totalNewPhotosBytes = $derived(newPhotos.reduce((sum, p) => sum + p.file.size, 0));
+	const newPhotosSizeError = $derived(totalNewPhotosBytes > MAX_PHOTOS_BYTES);
+	const totalNewPhotosMB = $derived((totalNewPhotosBytes / (1024 * 1024)).toFixed(2));
 
 	const images = $derived(
 		product?.images
@@ -20,11 +28,8 @@
 			: []
 	);
 	const imageUrl = $derived(Array.isArray(images) && images[0] ? images[0].url : null);
-
-	type PhotoItem = { id: string; preview: string; file: File };
-
-	let newPhotos = $state<PhotoItem[]>([]);
 	let isSubmitting = $state(false);
+	let uploadProgress = $state<number | null>(null);
 	let isDuplicating = $state(false);
 	let isDeleting = $state(false);
 	let showSuccess = $state(false);
@@ -52,7 +57,10 @@
 		const fileArray = Array.from(files).filter(
 			(f) => f.type.startsWith('image/') || (f.type === '' && f.size > 0)
 		);
+		let runningTotal = totalNewPhotosBytes;
 		for (const file of fileArray) {
+			if (runningTotal + file.size > MAX_PHOTOS_BYTES) continue;
+			runningTotal += file.size;
 			const reader = new FileReader();
 			reader.onload = () => {
 				newPhotos = [...newPhotos, { id: crypto.randomUUID(), preview: reader.result as string, file }];
@@ -88,6 +96,72 @@
 
 	function removePhoto(id: string) {
 		newPhotos = newPhotos.filter((p) => p.id !== id);
+	}
+
+	async function handleProductSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		const form = e.target as HTMLFormElement;
+		if (newPhotosSizeError) return;
+
+		const formData = new FormData(form);
+		formData.delete('photos');
+		for (const photo of newPhotos) {
+			const f = photo.file;
+			const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
+			const type = f.type || 'image/jpeg';
+			formData.append('photos', new File([f], name, { type }));
+		}
+
+		isSubmitting = true;
+		uploadProgress = 0;
+
+		try {
+			const actionUrl = form.action || window.location.pathname;
+			const result = await new Promise<{ type: string; data?: unknown } | { redirect: string }>((resolve, reject) => {
+				const xhr = new XMLHttpRequest();
+				xhr.open('POST', actionUrl);
+
+				xhr.upload.onprogress = (ev) => {
+					if (ev.lengthComputable) {
+						uploadProgress = Math.round((ev.loaded / ev.total) * 100);
+					}
+				};
+
+				xhr.onload = () => {
+					if (xhr.status >= 200 && xhr.status < 300) {
+						try {
+							const parsed = deserialize(xhr.responseText);
+							resolve(parsed as { type: string; data?: unknown });
+						} catch {
+							if (xhr.responseURL && xhr.responseURL !== actionUrl) {
+								resolve({ redirect: xhr.responseURL });
+							} else {
+								reject(new Error('Invalid response'));
+							}
+						}
+					} else {
+						reject(new Error(`Upload failed: ${xhr.status}`));
+					}
+				};
+				xhr.onerror = () => reject(new Error('Network error'));
+				xhr.send(formData);
+			});
+
+			if ('redirect' in result) {
+				goto(new URL(result.redirect).pathname);
+			} else {
+				await applyAction(result as Parameters<typeof applyAction>[0]);
+				const data = (result as { type: string; data?: { success?: boolean } }).data;
+				if (result.type === 'success' && data?.success) {
+					newPhotos = [];
+					if (fileInput) fileInput.value = '';
+					await invalidateAll();
+				}
+			}
+		} finally {
+			isSubmitting = false;
+			uploadProgress = null;
+		}
 	}
 
 	$effect(() => {
@@ -213,7 +287,7 @@
 					<button
 						form="product-form"
 						type="submit"
-						disabled={isAnyLoading}
+						disabled={isAnyLoading || newPhotosSizeError}
 						class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
 					>
 						{#if isSubmitting}
@@ -321,28 +395,11 @@
 			method="POST"
 			enctype="multipart/form-data"
 			class="space-y-4"
-			use:enhance={({ formData }) => {
-				formData.delete('photos');
-				for (const photo of newPhotos) {
-					const f = photo.file;
-					const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
-					const type = f.type || 'image/jpeg';
-					formData.append('photos', new File([f], name, { type }));
-				}
-				isSubmitting = true;
-				return async ({ result, update }) => {
-					await update({ reset: false });
-					isSubmitting = false;
-					if (result.type === 'success' && result.data?.success) {
-						newPhotos = [];
-						if (fileInput) fileInput.value = '';
-					}
-				};
-			}}
+			onsubmit={handleProductSubmit}
 		>
 			<!-- Add more photos -->
 			<div>
-				<label class="block text-xs font-medium text-stone-500 mb-2">Add more photos</label>
+				<label class="block text-xs font-medium text-stone-500 mb-2">Add more photos <span class="font-normal text-stone-400">(max 10MB total)</span></label>
 				<div
 					role="button"
 					tabindex="0"
@@ -412,7 +469,27 @@
 					class="hidden"
 					onchange={onInputChange}
 				/>
+				{#if newPhotos.length > 0}
+					<p class="mt-1.5 text-xs {newPhotosSizeError ? 'text-red-600' : 'text-stone-500'}">
+						{totalNewPhotosMB} MB / 10 MB
+						{#if newPhotosSizeError}
+							— over limit, remove some photos
+						{/if}
+					</p>
+				{/if}
 			</div>
+
+			{#if uploadProgress !== null}
+				<div class="space-y-1">
+					<div class="h-2 overflow-hidden rounded-full bg-stone-200">
+						<div
+							class="h-full bg-stone-700 transition-all duration-300"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-stone-500">Uploading… {uploadProgress}%</p>
+				</div>
+			{/if}
 
 			<div>
 				<label for="category_id" class="block text-xs font-medium text-stone-500">Category</label>
@@ -500,7 +577,7 @@
 				<button
 					form="product-form"
 					type="submit"
-					disabled={isAnyLoading}
+					disabled={isAnyLoading || newPhotosSizeError}
 					class="w-full rounded-lg bg-stone-900 px-4 py-3 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
 				>
 					{#if isSubmitting}

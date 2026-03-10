@@ -1,16 +1,22 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { applyAction, deserialize } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	let { data } = $props();
 
+	const MAX_PHOTOS_BYTES = 10 * 1024 * 1024; // 10MB
 	const categories = $derived<any>(data?.categories ?? []);
 	const error = $derived($page.form?.error);
 
 	type PhotoItem = { id: string; preview: string; file: File };
 
 	let photos = $state<PhotoItem[]>([]);
+	const totalPhotosBytes = $derived(photos.reduce((sum, p) => sum + p.file.size, 0));
+	const photosSizeError = $derived(totalPhotosBytes > MAX_PHOTOS_BYTES);
+	const totalPhotosMB = $derived((totalPhotosBytes / (1024 * 1024)).toFixed(2));
 	let isSubmitting = $state(false);
+	let uploadProgress = $state<number | null>(null);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement | null = null;
 
@@ -19,7 +25,10 @@
 		const fileArray = Array.from(files).filter(
 			(f) => f.type.startsWith('image/') || (f.type === '' && f.size > 0)
 		);
+		let runningTotal = totalPhotosBytes;
 		for (const file of fileArray) {
+			if (runningTotal + file.size > MAX_PHOTOS_BYTES) continue;
+			runningTotal += file.size;
 			const reader = new FileReader();
 			reader.onload = () => {
 				photos = [...photos, { id: crypto.randomUUID(), preview: reader.result as string, file }];
@@ -93,6 +102,67 @@
 			addClipboardItems(items);
 		}
 	}
+
+	async function handleSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		const form = e.target as HTMLFormElement;
+		if (photosSizeError || photos.length === 0) return;
+
+		const formData = new FormData(form);
+		formData.delete('photos');
+		for (const photo of photos) {
+			const f = photo.file;
+			const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
+			const type = f.type || 'image/jpeg';
+			formData.append('photos', new File([f], name, { type }));
+		}
+
+		isSubmitting = true;
+		uploadProgress = 0;
+
+		const actionUrl = form.action || window.location.pathname;
+		try {
+			const result = await new Promise<{ type: string; data?: unknown } | { redirect: string }>((resolve, reject) => {
+				const xhr = new XMLHttpRequest();
+				xhr.open('POST', actionUrl);
+
+				xhr.upload.onprogress = (ev) => {
+					if (ev.lengthComputable) {
+						uploadProgress = Math.round((ev.loaded / ev.total) * 100);
+					}
+				};
+
+				xhr.onload = () => {
+					if (xhr.status >= 200 && xhr.status < 300) {
+						try {
+							const parsed = deserialize(xhr.responseText);
+							resolve(parsed as { type: string; data?: unknown });
+						} catch {
+							// XHR followed redirect, response is HTML; navigate to final URL
+							if (xhr.responseURL && xhr.responseURL !== actionUrl) {
+								resolve({ redirect: xhr.responseURL });
+							} else {
+								reject(new Error('Invalid response'));
+							}
+						}
+					} else {
+						reject(new Error(`Upload failed: ${xhr.status}`));
+					}
+				};
+				xhr.onerror = () => reject(new Error('Network error'));
+				xhr.send(formData);
+			});
+
+			if ('redirect' in result) {
+				goto(new URL(result.redirect).pathname);
+			} else {
+				await applyAction(result as Parameters<typeof applyAction>[0]);
+			}
+		} finally {
+			isSubmitting = false;
+			uploadProgress = null;
+		}
+	}
 </script>
 
 <svelte:window onpaste={onPaste} />
@@ -108,26 +178,14 @@
 		method="POST"
 		enctype="multipart/form-data"
 		class="space-y-6"
-		use:enhance={({ formData }) => {
-			// Replace photos with our state - camera-captured files often have empty name/type
-			// and DataTransfer can fail on some mobile browsers, so we inject files directly
-			formData.delete('photos');
-			for (const photo of photos) {
-				const f = photo.file;
-				const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
-				const type = f.type || 'image/jpeg';
-				formData.append('photos', new File([f], name, { type }));
-			}
-			isSubmitting = true;
-			return async ({ update }) => {
-				await update();
-				isSubmitting = false;
-			};
-		}}
+		onsubmit={handleSubmit}
 	>
 		<!-- Photo upload -->
 		<div>
-			<label for="photos" class="block text-sm font-medium text-stone-700 mb-2">Photos <span class="text-red-500">*</span></label>
+			<label for="photos" class="block text-sm font-medium text-stone-700 mb-2">
+				Photos <span class="text-red-500">*</span>
+				<span class="font-normal text-stone-500">(max 10MB total)</span>
+			</label>
 			<div
 				role="button"
 				tabindex="0"
@@ -212,6 +270,14 @@
 				class="hidden"
 				onchange={onInputChange}
 			/>
+			{#if photos.length > 0}
+				<p class="mt-1.5 text-xs {photosSizeError ? 'text-red-600' : 'text-stone-500'}">
+					{totalPhotosMB} MB / 10 MB
+					{#if photosSizeError}
+						— over limit, remove some photos
+					{/if}
+				</p>
+			{/if}
 		</div>
 
 		<!-- Category -->
@@ -297,13 +363,25 @@
 			</div>
 		</div>
 
+		{#if uploadProgress !== null}
+			<div class="space-y-1">
+				<div class="h-2 overflow-hidden rounded-full bg-stone-200">
+					<div
+						class="h-full bg-stone-700 transition-all duration-300"
+						style="width: {uploadProgress}%"
+					></div>
+				</div>
+				<p class="text-xs text-stone-500">Uploading… {uploadProgress}%</p>
+			</div>
+		{/if}
+
 		{#if error}
 			<p class="text-sm text-red-600">{error}</p>
 		{/if}
 
 		<button
 			type="submit"
-			disabled={photos.length === 0 || isSubmitting}
+			disabled={photos.length === 0 || isSubmitting || photosSizeError}
 			class="w-full flex items-center justify-center gap-2 rounded-lg bg-stone-900 px-4 py-3 text-white font-medium hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 		>
 			{#if isSubmitting}
