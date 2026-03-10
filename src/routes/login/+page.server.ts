@@ -1,9 +1,23 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 const SESSION_COOKIE = 'riverine_session';
+
+export async function load() {
+	let version = 1;
+	try {
+		const path = join(process.cwd(), 'version.json');
+		const data = JSON.parse(readFileSync(path, 'utf8'));
+		version = Number(data.version) || 1;
+	} catch {
+		// use default
+	}
+	return { version };
+}
 const SESSION_DAYS = 3;
 
 export const actions = {

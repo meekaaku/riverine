@@ -1,4 +1,9 @@
-<script lang="ts"></script>
+<script lang="ts">
+	interface Props {
+		data: { version: number };
+	}
+	let { data }: Props = $props();
+</script>
 
 <div class="flex min-h-[100dvh] flex-col items-center justify-center px-4 py-8">
 	<div class="w-full max-w-sm">
@@ -35,5 +40,6 @@
 				Sign in
 			</button>
 		</form>
+		<p class="mt-6 text-center text-xs text-stone-400">v{data.version}</p>
 	</div>
 </div>
