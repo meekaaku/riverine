@@ -11,7 +11,11 @@ export async function load() {
 }
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
+		const userId = locals.user?.id;
+		if (!userId) {
+			return fail(401, { error: 'You must be logged in to add a product' });
+		}
 		const formData = await request.formData();
 		const categoryId = formData.get('category_id');
 		const requirements = formData.get('requirements')?.toString() ?? '';
@@ -52,13 +56,12 @@ export const actions = {
 
 		try {
 			const productResult = await db.execute(sql`
-				INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
-				VALUES (${categoryId}, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
+				INSERT INTO rvr_product (category_id, user_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
+				VALUES (${categoryId}, ${userId}::uuid, ${requirements}, ${link || null}, ${description || null}, ${isPublic}, ${floorRent}, ${floor7}, ${floor8}, ${floor9}, ${floor10})
 				RETURNING id
 			`);
 			const productRows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
 			const product: any = productRows[0];
-            console.log({product});
 
 			if (imageUrls.length > 0 && product?.id) {
 				for (const url of imageUrls) {
