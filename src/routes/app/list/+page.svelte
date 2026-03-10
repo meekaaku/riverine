@@ -22,7 +22,7 @@
 	<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
 		{#each products as product}
 			{@const images = typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images ?? [])}
-			{@const imageUrl = Array.isArray(images) && images[0] ? images[0].url : null}
+			{@const imageUrl = Array.isArray(images) && images[0] ? (images[0].thumb ?? images[0].url) : null}
 			{@const floors = [
 				product.floor_rent && 'Rent',
 				product.floor_7 && '7',

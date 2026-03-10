@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { showError } from '$lib/stores/errorDialog';
+	import { resizePhotoForUpload } from '$lib/resizeImage';
 
 	let { data } = $props();
 
@@ -110,11 +111,12 @@
 
 		const formData = new FormData(form);
 		formData.delete('photos');
+		formData.delete('photos_thumb');
 		for (const photo of photos) {
-			const f = photo.file;
-			const name = f.name?.includes('.') ? f.name : `${f.name || 'image'}.jpg`;
-			const type = f.type || 'image/jpeg';
-			formData.append('photos', new File([f], name, { type }));
+			const { image, thumb } = await resizePhotoForUpload(photo.file);
+			const name = photo.file.name?.includes('.') ? photo.file.name : `${photo.file.name || 'image'}.jpg`;
+			formData.append('photos', new File([image], name, { type: 'image/jpeg' }));
+			formData.append('photos_thumb', new File([thumb], `thumb_${name}`, { type: 'image/jpeg' }));
 		}
 
 		isSubmitting = true;

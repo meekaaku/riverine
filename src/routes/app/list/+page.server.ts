@@ -32,7 +32,7 @@ export async function load({ url }) {
 				p.is_public, p.floor_rent, p.floor_7, p.floor_8, p.floor_9, p.floor_10,
 				c.name AS category_name,
 				COALESCE(
-					(SELECT JSON_AGG(JSON_BUILD_OBJECT('id', rip.id, 'url', rip.url))
+					(SELECT JSON_AGG(JSON_BUILD_OBJECT('id', rip.id, 'url', rip.url, 'thumb', rip.thumb))
 					 FROM rvr_product_image rip
 					 WHERE rip.product_id = p.id AND rip.deleted_at IS NULL),
 					'[]'::json

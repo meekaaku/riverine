@@ -33,21 +33,29 @@ export const actions = {
 		}
 
 		const photoFiles = formData.getAll('photos') as File[];
+		const thumbFiles = formData.getAll('photos_thumb') as File[];
 		const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
 
 		if (validPhotos.length === 0) {
 			return fail(400, { error: 'At least one photo is required' });
 		}
 
-		const imageUrls: string[] = [];
+		const imageRecords: { url: string; thumb: string }[] = [];
 
-		for (const photo of validPhotos) {
+		for (let i = 0; i < validPhotos.length; i++) {
+			const photo = validPhotos[i];
+			const thumb = thumbFiles[i] instanceof File && thumbFiles[i].size > 0 ? thumbFiles[i] : null;
 			try {
 				const ext = (photo.name?.split('.').pop() || 'jpg').replace(/[^a-z0-9]/i, '') || 'jpg';
-				const key = `${randomUUID()}.${ext}`;
+				const baseId = randomUUID();
+				const mainKey = `${baseId}.${ext}`;
+				const thumbKey = `${baseId}_thumb.${ext}`;
 				const contentType = photo.type?.startsWith('image/') ? photo.type : 'image/jpeg';
-				const url = await uploadToSpaces(photo, key, contentType);
-				imageUrls.push(url);
+				const [url, thumbUrl] = await Promise.all([
+					uploadToSpaces(photo, mainKey, contentType),
+					thumb ? uploadToSpaces(thumb, thumbKey, contentType) : Promise.resolve(null)
+				]);
+				imageRecords.push({ url, thumb: thumbUrl ?? url });
 			} catch (e) {
 				console.error('Upload failed:', e);
 				const err = e instanceof Error ? e : new Error(String(e));
@@ -68,11 +76,11 @@ export const actions = {
 			const productRows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
 			const product: any = productRows[0];
 
-			if (imageUrls.length > 0 && product?.id) {
-				for (const url of imageUrls) {
+			if (imageRecords.length > 0 && product?.id) {
+				for (const { url, thumb } of imageRecords) {
 					await db.execute(sql`
-						INSERT INTO rvr_product_image (product_id, url)
-						VALUES (${product.id}, ${url})
+						INSERT INTO rvr_product_image (product_id, url, thumb)
+						VALUES (${product.id}, ${url}, ${thumb})
 					`);
 				}
 			}

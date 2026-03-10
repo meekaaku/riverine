@@ -94,14 +94,15 @@ export const actions = {
 				if (!newProduct?.id) return fail(500, { error: 'Failed to create duplicate' });
 
 				const imageRows = await db.execute(sql`
-					SELECT url FROM rvr_product_image WHERE product_id = ${params.id} AND deleted_at IS NULL
+					SELECT url, thumb FROM rvr_product_image WHERE product_id = ${params.id} AND deleted_at IS NULL
 				`);
-				const images = Array.isArray(imageRows) ? imageRows : (imageRows as { rows?: { url: string }[] }).rows ?? [];
+				const images = Array.isArray(imageRows) ? imageRows : (imageRows as { rows?: { url: string; thumb?: string }[] }).rows ?? [];
 				for (const img of images) {
 					const url = (img as { url?: string }).url;
+					const thumb = (img as { thumb?: string }).thumb ?? url;
 					if (url) {
 						await db.execute(sql`
-							INSERT INTO rvr_product_image (product_id, url) VALUES (${newProduct.id}, ${url})
+							INSERT INTO rvr_product_image (product_id, url, thumb) VALUES (${newProduct.id}, ${url}, ${thumb})
 						`);
 					}
 				}
@@ -147,15 +148,23 @@ export const actions = {
 			`);
 
 			const photoFiles = formData.getAll('photos') as File[];
+			const thumbFiles = formData.getAll('photos_thumb') as File[];
 			const validPhotos = photoFiles.filter((f) => f instanceof File && f.size > 0);
-			for (const photo of validPhotos) {
+			for (let i = 0; i < validPhotos.length; i++) {
+				const photo = validPhotos[i];
+				const thumb = thumbFiles[i] instanceof File && thumbFiles[i].size > 0 ? thumbFiles[i] : null;
 				try {
 					const ext = (photo.name?.split('.').pop() || 'jpg').replace(/[^a-z0-9]/i, '') || 'jpg';
-					const key = `${randomUUID()}.${ext}`;
+					const baseId = randomUUID();
+					const mainKey = `${baseId}.${ext}`;
+					const thumbKey = `${baseId}_thumb.${ext}`;
 					const contentType = photo.type?.startsWith('image/') ? photo.type : 'image/jpeg';
-					const url = await uploadToSpaces(photo, key, contentType);
+					const [url, thumbUrl] = await Promise.all([
+						uploadToSpaces(photo, mainKey, contentType),
+						thumb ? uploadToSpaces(thumb, thumbKey, contentType) : Promise.resolve(null)
+					]);
 					await db.execute(sql`
-						INSERT INTO rvr_product_image (product_id, url) VALUES (${params.id}, ${url})
+						INSERT INTO rvr_product_image (product_id, url, thumb) VALUES (${params.id}, ${url}, ${thumbUrl ?? url})
 					`);
 				} catch (e) {
 					console.error('Upload failed:', e);
