@@ -40,6 +40,7 @@ export async function load({ url }) {
 			FROM rvr_product p
 			INNER JOIN rvr_category c ON p.category_id = c.id
 			WHERE ${whereClause}
+			ORDER BY p.created_at DESC NULLS LAST
 		`),
 		db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`)
 	]);

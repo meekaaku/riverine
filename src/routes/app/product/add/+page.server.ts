@@ -50,7 +50,12 @@ export const actions = {
 				imageUrls.push(url);
 			} catch (e) {
 				console.error('Upload failed:', e);
-				return fail(500, { error: 'Failed to upload photo' });
+				const err = e instanceof Error ? e : new Error(String(e));
+				return fail(500, {
+					error: 'Failed to upload photo',
+					details: err.stack,
+					context: `upload: ${err.message}`
+				});
 			}
 		}
 
@@ -76,7 +81,12 @@ export const actions = {
 		} catch (e) {
 			if (isRedirect(e)) throw e;
 			console.error('Insert failed:', e);
-			return fail(500, { error: 'Failed to create product' });
+			const err = e instanceof Error ? e : new Error(String(e));
+			return fail(500, {
+				error: 'Failed to create product',
+				details: err.stack,
+				context: `add product: ${err.message}`
+			});
 		}
 	}
 };

@@ -2,12 +2,12 @@
 	import { applyAction, deserialize } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { showError } from '$lib/stores/errorDialog';
 
 	let { data } = $props();
 
 	const MAX_PHOTOS_BYTES = 10 * 1024 * 1024; // 10MB
 	const categories = $derived<any>(data?.categories ?? []);
-	const error = $derived($page.form?.error);
 
 	type PhotoItem = { id: string; preview: string; file: File };
 
@@ -146,7 +146,13 @@
 							}
 						}
 					} else {
-						reject(new Error(`Upload failed: ${xhr.status}`));
+						// Parse failure response so applyAction can show error dialog
+						try {
+							const parsed = deserialize(xhr.responseText);
+							resolve(parsed as { type: string; data?: unknown });
+						} catch {
+							resolve({ type: 'failure', data: { error: `Request failed: ${xhr.status}` } });
+						}
 					}
 				};
 				xhr.onerror = () => reject(new Error('Network error'));
@@ -158,6 +164,9 @@
 			} else {
 				await applyAction(result as Parameters<typeof applyAction>[0]);
 			}
+		} catch (e) {
+			const err = e instanceof Error ? e : new Error(String(e));
+			showError({ message: err.message, context: 'Add product' });
 		} finally {
 			isSubmitting = false;
 			uploadProgress = null;
@@ -373,10 +382,6 @@
 				</div>
 				<p class="text-xs text-stone-500">Uploading… {uploadProgress}%</p>
 			</div>
-		{/if}
-
-		{#if error}
-			<p class="text-sm text-red-600">{error}</p>
 		{/if}
 
 		<button

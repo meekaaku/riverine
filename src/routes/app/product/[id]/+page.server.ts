@@ -54,7 +54,8 @@ export const actions = {
 				return { success: true };
 			} catch (e) {
 				console.error('Remove image failed:', e);
-				return fail(500, { error: 'Failed to remove photo' });
+				const err = e instanceof Error ? e : new Error(String(e));
+				return fail(500, { error: 'Failed to remove photo', details: err.stack, context: `remove_image: ${err.message}` });
 			}
 		}
 
@@ -66,7 +67,8 @@ export const actions = {
 			} catch (e) {
 				if (isRedirect(e)) throw e;
 				console.error('Delete failed:', e);
-				return fail(500, { error: 'Failed to delete product' });
+				const err = e instanceof Error ? e : new Error(String(e));
+				return fail(500, { error: 'Failed to delete product', details: err.stack, context: `delete: ${err.message}` });
 			}
 		}
 
@@ -108,7 +110,8 @@ export const actions = {
 			} catch (e) {
 				if (isRedirect(e)) throw e;
 				console.error('Duplicate failed:', e);
-				return fail(500, { error: 'Failed to duplicate product' });
+				const err = e instanceof Error ? e : new Error(String(e));
+				return fail(500, { error: 'Failed to duplicate product', details: err.stack, context: `duplicate: ${err.message}` });
 			}
 		}
 
@@ -156,14 +159,16 @@ export const actions = {
 					`);
 				} catch (e) {
 					console.error('Upload failed:', e);
-					return fail(500, { error: 'Failed to upload photo' });
+					const err = e instanceof Error ? e : new Error(String(e));
+					return fail(500, { error: 'Failed to upload photo', details: err.stack, context: `upload: ${err.message}` });
 				}
 			}
 
 			return { success: true };
 		} catch (e) {
 			console.error('Update failed:', e);
-			return fail(500, { error: 'Failed to update product' });
+			const err = e instanceof Error ? e : new Error(String(e));
+			return fail(500, { error: 'Failed to update product', details: err.stack, context: `update: ${err.message}` });
 		}
 	}
 };

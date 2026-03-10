@@ -2,6 +2,7 @@
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { showError } from '$lib/stores/errorDialog';
 
 	let { data } = $props();
 
@@ -9,7 +10,6 @@
 	const product = $derived<any>(data?.product);
 	const categories = $derived<any[]>(data?.categories ?? []);
 	const isChecked = (v: unknown) => v === true || v === 't' || v === 1;
-	const error = $derived($page.form?.error);
 	const success = $derived($page.form?.success);
 	const showDuplicated = $derived($page.url.searchParams.get('duplicated') === '1');
 
@@ -140,7 +140,13 @@
 							}
 						}
 					} else {
-						reject(new Error(`Upload failed: ${xhr.status}`));
+						// Parse failure response so applyAction can show error dialog
+						try {
+							const parsed = deserialize(xhr.responseText);
+							resolve(parsed as { type: string; data?: unknown });
+						} catch {
+							resolve({ type: 'failure', data: { error: `Request failed: ${xhr.status}` } });
+						}
 					}
 				};
 				xhr.onerror = () => reject(new Error('Network error'));
@@ -158,6 +164,9 @@
 					await invalidateAll();
 				}
 			}
+		} catch (e) {
+			const err = e instanceof Error ? e : new Error(String(e));
+			showError({ message: err.message, context: 'Save product' });
 		} finally {
 			isSubmitting = false;
 			uploadProgress = null;
@@ -308,8 +317,6 @@
 						<span class="text-green-600">Product duplicated successfully</span>
 					{:else if showSuccess}
 						<span class="text-green-600">Saved successfully</span>
-					{:else if error}
-						<span class="text-red-600">{error}</span>
 					{/if}
 				</div>
 				<div class="min-h-5 w-full text-right text-xs text-stone-500">
@@ -570,8 +577,6 @@
 				<div class="min-h-6 text-sm">
 					{#if showSuccess}
 						<span class="text-green-600">Saved successfully</span>
-					{:else if error}
-						<span class="text-red-600">{error}</span>
 					{/if}
 				</div>
 				<button
