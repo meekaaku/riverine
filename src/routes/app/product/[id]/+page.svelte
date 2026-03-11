@@ -91,6 +91,23 @@
 		isDragging = false;
 	}
 
+	function onPaste(e: ClipboardEvent) {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+		const files: File[] = [];
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.kind === 'file' && item.type.startsWith('image/')) {
+				const file = item.getAsFile();
+				if (file) files.push(file);
+			}
+		}
+		if (files.length > 0) {
+			e.preventDefault();
+			addFiles(files);
+		}
+	}
+
 	function openFilePicker() {
 		fileInput?.click();
 	}
@@ -200,6 +217,12 @@
 				document.body.style.overflow = '';
 			};
 		}
+	});
+
+	$effect(() => {
+		if (!product) return;
+		document.addEventListener('paste', onPaste);
+		return () => document.removeEventListener('paste', onPaste);
 	});
 </script>
 
@@ -465,7 +488,7 @@
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
 							</svg>
-							<p class="text-xs text-stone-500">Drag & drop or click to add photos</p>
+							<p class="text-xs text-stone-500">Drag & drop, paste, or click to add photos</p>
 						</div>
 					{/if}
 				</div>

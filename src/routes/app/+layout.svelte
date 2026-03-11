@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { navigating, page } from '$app/stores';
 	import { goto } from '$app/navigation';
 
 	interface Props {
@@ -19,6 +19,7 @@
 	let pendingCategory = $state('');
 	let pendingPublic = $state(false);
 	let pendingFloors = $state<string[]>([]);
+	let isFiltering = $state(false);
 
 	const FLOOR_OPTIONS = [
 		{ value: 'rent', label: 'Rent' },
@@ -56,6 +57,7 @@
 
 	function applyFilters() {
 		filterOpen = false;
+		isFiltering = true;
 		goto(buildFilterUrl({}));
 	}
 
@@ -64,8 +66,15 @@
 		pendingCategory = '';
 		pendingPublic = false;
 		pendingFloors = [];
+		isFiltering = true;
 		goto('/app/list');
 	}
+
+	$effect(() => {
+		if (!$navigating && isFiltering) {
+			isFiltering = false;
+		}
+	});
 
 	$effect(() => {
 		if (!dropdownOpen) return;
@@ -108,19 +117,28 @@
 				<div class="relative">
 					<button
 						type="button"
-						class="filter-trigger inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium {isFilterActive ? 'border-stone-900 bg-stone-100 text-stone-900' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-50'}"
+						disabled={isFiltering}
+						class="filter-trigger inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium {isFilterActive ? 'border-stone-900 bg-stone-100 text-stone-900' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-50'} disabled:opacity-70 disabled:cursor-wait"
 						onclick={(e) => { e.stopPropagation(); filterOpen = !filterOpen; }}
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
-						</svg>
-						Filter
-						{#if isFilterActive}
-							<span class="ml-0.5 size-1.5 rounded-full bg-stone-600" title="Filtering active"></span>
+						{#if isFiltering}
+							<svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Applying…
+						{:else}
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+							</svg>
+							Filter
+							{#if isFilterActive}
+								<span class="ml-0.5 size-1.5 rounded-full bg-stone-600" title="Filtering active"></span>
+							{/if}
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform {filterOpen ? 'rotate-180' : ''}">
+								<path d="M6 9l6 6 6-6" />
+							</svg>
 						{/if}
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform {filterOpen ? 'rotate-180' : ''}">
-							<path d="M6 9l6 6 6-6" />
-						</svg>
 					</button>
 					{#if filterOpen}
 						<div
@@ -211,5 +229,22 @@
 			{/if}
 		</div>
 	</header>
-	{@render children()}
+	<div class="relative">
+		{@render children()}
+		{#if isFiltering && isListPage}
+			<div
+				class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[2px]"
+				aria-live="polite"
+				aria-busy="true"
+			>
+				<div class="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-3 shadow-sm">
+					<svg class="h-5 w-5 animate-spin text-stone-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+					</svg>
+					<span class="text-sm font-medium text-stone-700">Applying filters…</span>
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>
