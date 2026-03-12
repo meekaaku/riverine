@@ -29,6 +29,10 @@
 			: []
 	);
 	const imageUrl = $derived(Array.isArray(images) && images[0] ? images[0].url : null);
+	const lightboxImages = $derived([
+		...(Array.isArray(images) ? images.map((img: { url: string }) => img.url) : []),
+		...newPhotos.map((p) => p.preview)
+	]);
 	let isSubmitting = $state(false);
 	let uploadProgress = $state<number | null>(null);
 	let isDuplicating = $state(false);
@@ -36,21 +40,37 @@
 	let showSuccess = $state(false);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement | null = null;
-	let lightboxUrl = $state<string | null>(null);
+	let lightboxIndex = $state<number | null>(null);
 	let removingImageId = $state<string | number | null>(null);
 
 	const isAnyLoading = $derived(isSubmitting || isDuplicating || isDeleting);
+	const lightboxUrl = $derived(
+		lightboxIndex !== null && lightboxImages[lightboxIndex] ? lightboxImages[lightboxIndex] : null
+	);
+	const hasMultipleImages = $derived(lightboxImages.length > 1);
 
-	function openLightbox(url: string) {
-		lightboxUrl = url;
+	function openLightbox(index: number) {
+		if (index >= 0 && index < lightboxImages.length) lightboxIndex = index;
 	}
 
 	function closeLightbox() {
-		lightboxUrl = null;
+		lightboxIndex = null;
+	}
+
+	function goPrev() {
+		if (lightboxImages.length <= 1) return;
+		lightboxIndex = lightboxIndex === null ? 0 : (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+	}
+
+	function goNext() {
+		if (lightboxImages.length <= 1) return;
+		lightboxIndex = lightboxIndex === null ? 0 : (lightboxIndex + 1) % lightboxImages.length;
 	}
 
 	function handleLightboxKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') closeLightbox();
+		else if (e.key === 'ArrowLeft') goPrev();
+		else if (e.key === 'ArrowRight') goNext();
 	}
 
 	function addFiles(files: FileList | File[] | null) {
@@ -208,7 +228,7 @@
 	});
 
 	$effect(() => {
-		if (lightboxUrl) {
+		if (lightboxIndex !== null) {
 			const handler = (e: KeyboardEvent) => handleLightboxKeydown(e);
 			window.addEventListener('keydown', handler);
 			document.body.style.overflow = 'hidden';
@@ -227,7 +247,7 @@
 </script>
 
 <!-- Lightbox modal -->
-{#if lightboxUrl}
+{#if lightboxIndex !== null && lightboxUrl}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		role="dialog"
@@ -248,9 +268,36 @@
 				<path d="M18 6L6 18M6 6l12 12" />
 			</svg>
 		</button>
-		<div class="max-h-[90vh] max-w-[90vw] cursor-default" onclick={(e) => e.stopPropagation()}>
-			<img src={lightboxUrl} alt="Product" class="h-full w-full object-contain" />
+		{#if hasMultipleImages}
+			<button
+				type="button"
+				class="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 sm:left-4"
+				onclick={(e) => { e.stopPropagation(); goPrev(); }}
+				aria-label="Previous image"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M15 18l-6-6 6-6" />
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 sm:right-4"
+				onclick={(e) => { e.stopPropagation(); goNext(); }}
+				aria-label="Next image"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M9 18l6-6-6-6" />
+				</svg>
+			</button>
+		{/if}
+		<div class="flex max-h-[90vh] max-w-[90vw] cursor-default items-center justify-center" onclick={(e) => e.stopPropagation()}>
+			<img src={lightboxUrl} alt="Product" class="max-h-[90vh] max-w-[90vw] w-auto h-auto object-contain" />
 		</div>
+		{#if hasMultipleImages}
+			<div class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white/90">
+				{lightboxIndex + 1} / {lightboxImages.length}
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -365,7 +412,7 @@
 								type="button"
 								class="absolute inset-0 flex items-center justify-center cursor-zoom-in disabled:pointer-events-none"
 								disabled={removingImageId == img.id}
-								onclick={() => openLightbox(img.url)}
+								onclick={() => openLightbox(i)}
 							>
 								<img src={img.url} alt="Product" class="h-full w-full object-contain" />
 							</button>
@@ -446,12 +493,12 @@
 					{#if newPhotos.length > 0}
 						<div class="min-h-0 flex-1 overflow-y-auto p-3">
 							<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-								{#each newPhotos as photo (photo.id)}
+								{#each newPhotos as photo, i (photo.id)}
 									<div class="group relative aspect-square overflow-hidden rounded-lg bg-stone-100">
 										<button
 											type="button"
 											class="absolute inset-0 flex items-center justify-center"
-											onclick={() => openLightbox(photo.preview)}
+											onclick={() => openLightbox(images.length + i)}
 										>
 											<img src={photo.preview} alt="Preview" class="h-full w-full object-contain" />
 										</button>
