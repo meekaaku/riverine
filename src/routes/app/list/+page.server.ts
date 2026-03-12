@@ -25,6 +25,9 @@ export async function load({ url }) {
 	];
 	const whereClause = sql.join(conditions, sql` AND `);
 
+	const limit = 10;
+	const offset = 0;
+
 	const [productsResult, categoriesResult] = await Promise.all([
 		db.execute(sql`
 			SELECT 
@@ -41,16 +44,19 @@ export async function load({ url }) {
 			INNER JOIN rvr_category c ON p.category_id = c.id
 			WHERE ${whereClause}
 			ORDER BY p.created_at DESC NULLS LAST
+			LIMIT ${limit} OFFSET ${offset}
 		`),
 		db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`)
 	]);
 
 	const products = Array.isArray(productsResult) ? productsResult : (productsResult as { rows?: unknown[] }).rows ?? [];
 	const categories = Array.isArray(categoriesResult) ? categoriesResult : (categoriesResult as { rows?: unknown[] }).rows ?? [];
+	const hasMore = products.length === limit;
 
 	return {
 		products,
 		categories,
-		filters: { category, publicOnly, selectedFloors }
+		filters: { category, publicOnly, selectedFloors },
+		hasMore
 	};
 }
