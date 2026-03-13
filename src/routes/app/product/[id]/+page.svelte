@@ -306,7 +306,7 @@
 {:else}
 	<div class="mx-auto max-w-xl p-4">
 		<div class="mb-4 flex items-start justify-between gap-4">
-			<a href="/app/list" class="text-sm text-stone-600 hover:text-stone-900">← Back</a>
+			<button type="button" onclick={() => history.back()} class="bg-transparent border-none cursor-pointer p-0 text-left text-sm text-stone-600 hover:text-stone-900">← Back</button>
 			<div class="flex flex-col items-end gap-1">
 				<div class="flex items-center gap-2">
 					<form

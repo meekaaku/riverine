@@ -179,9 +179,9 @@
 <svelte:window onpaste={onPaste} />
 
 <div class="mx-auto max-w-xl p-4 md:px-8">
-	<a href="/app/list" class="mb-4 inline-block text-sm text-stone-600 hover:text-stone-900">
+	<button type="button" onclick={() => history.back()} class="mb-4 inline-block bg-transparent border-none cursor-pointer p-0 text-left text-sm text-stone-600 hover:text-stone-900">
 		← Back to list
-	</a>
+	</button>
 
 	<h1 class="text-2xl font-semibold text-stone-900 mb-6">Add product</h1>
 
