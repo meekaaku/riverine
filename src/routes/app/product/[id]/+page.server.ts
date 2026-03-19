@@ -42,7 +42,7 @@ export async function load({ params }) {
 }
 
 export const actions = {
-	default: async ({ request, params }) => {
+	default: async ({ request, params, locals }) => {
 		const formData = await request.formData();
 		const intent = formData.get('intent')?.toString();
 
@@ -73,6 +73,10 @@ export const actions = {
 		}
 
 		if (intent === 'duplicate') {
+			const userId = locals.user?.id;
+			if (!userId) {
+				return fail(401, { error: 'You must be logged in to duplicate a product' });
+			}
 			try {
 				const [productResult] = await Promise.all([
 					db.execute(sql`
@@ -85,8 +89,8 @@ export const actions = {
 				if (!src) return fail(404, { error: 'Product not found' });
 
 				const insertResult = await db.execute(sql`
-					INSERT INTO rvr_product (category_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
-					VALUES (${src.category_id}, ${src.requirements ?? null}, ${src.link ?? null}, ${src.description ?? null}, ${src.is_public ?? false}, ${src.floor_rent ?? false}, ${src.floor_7 ?? false}, ${src.floor_8 ?? false}, ${src.floor_9 ?? false}, ${src.floor_10 ?? false})
+					INSERT INTO rvr_product (category_id, user_id, requirements, link, description, is_public, floor_rent, floor_7, floor_8, floor_9, floor_10)
+					VALUES (${src.category_id}, ${userId}::uuid, ${src.requirements ?? null}, ${src.link ?? null}, ${src.description ?? null}, ${src.is_public ?? false}, ${src.floor_rent ?? false}, ${src.floor_7 ?? false}, ${src.floor_8 ?? false}, ${src.floor_9 ?? false}, ${src.floor_10 ?? false})
 					RETURNING id
 				`);
 				const insertRows = Array.isArray(insertResult) ? insertResult : (insertResult as { rows?: unknown[] }).rows ?? [];
