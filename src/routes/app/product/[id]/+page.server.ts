@@ -11,6 +11,7 @@ export async function load({ params }) {
 				p.*, 
 				c.id category_id, 
 				c.name category_name,
+				u.username added_by_username,
 				COALESCE(
 					JSON_AGG(
 						JSON_BUILD_OBJECT(
@@ -22,9 +23,10 @@ export async function load({ params }) {
 				) AS images
 			FROM rvr_product p
 			INNER JOIN rvr_category c ON p.category_id = c.id
+			LEFT JOIN rvr_user u ON p.user_id = u.id
 			LEFT JOIN rvr_product_image rip ON p.id = rip.product_id AND rip.deleted_at IS NULL
 			WHERE p.id = ${params.id} AND p.deleted_at IS NULL
-			GROUP BY p.id, c.id
+			GROUP BY p.id, c.id, u.username
 		`),
 		db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`)
 	]);
