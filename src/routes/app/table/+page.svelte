@@ -13,7 +13,8 @@
 		images?: Photo[] | null;
 	};
 
-	let { products }: { products: ProductRow[] } = $props();
+	let { data }: { data: { products?: ProductRow[] } } = $props();
+	const products = $derived(data?.products ?? []);
 
 	const FLOOR_OPTIONS: { key: keyof ProductRow; label: string }[] = [
 		{ key: 'floor_rent', label: 'Rent' },

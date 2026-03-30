@@ -31,7 +31,7 @@ export async function load() {
 		FROM rvr_product p
 		INNER JOIN rvr_category c ON p.category_id = c.id
 		WHERE p.deleted_at IS NULL
-		ORDER BY p.created_at DESC NULLS LAST
+		ORDER BY c.name ASC NULLS LAST, p.created_at DESC NULLS LAST
 		LIMIT ${limit}
 	`);
 
