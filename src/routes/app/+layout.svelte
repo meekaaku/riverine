@@ -11,6 +11,7 @@
 	let filterOpen = $state(false);
 
 	const isListPage = $derived($page.url.pathname === '/app/list');
+	const isTablePage = $derived($page.url.pathname === '/app/table');
 	const categories = $derived<any[]>($page.data?.categories ?? []);
 	const filters = $derived($page.data?.filters ?? { category: '', publicOnly: false, selectedFloors: [] as string[] });
 	const isFilterActive = $derived(
@@ -113,6 +114,30 @@
 				</svg>
 				Add
 			</a>
+			<div
+				class="inline-flex rounded-lg border border-stone-300 bg-stone-50 p-0.5 text-sm font-medium"
+				role="group"
+				aria-label="Product view"
+			>
+				<a
+					href="/app/list"
+					class="rounded-md px-3 py-1.5 transition-colors {isListPage
+						? 'bg-stone-900 text-white shadow-sm'
+						: 'text-stone-700 hover:bg-stone-100/80'}"
+					aria-current={isListPage ? 'page' : undefined}
+				>
+					List
+				</a>
+				<a
+					href="/app/table"
+					class="rounded-md px-3 py-1.5 transition-colors {isTablePage
+						? 'bg-stone-900 text-white shadow-sm'
+						: 'text-stone-700 hover:bg-stone-100/80'}"
+					aria-current={isTablePage ? 'page' : undefined}
+				>
+					Table
+				</a>
+			</div>
 			{#if isListPage}
 				<div class="relative">
 					<button
