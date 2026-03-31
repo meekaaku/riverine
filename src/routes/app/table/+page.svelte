@@ -4,7 +4,6 @@
 	type ProductRow = {
 		id: number;
 		category_name?: string | null;
-		requirements?: string | null;
 		floor_rent?: boolean | null;
 		floor_7?: boolean | null;
 		floor_8?: boolean | null;
@@ -40,7 +39,6 @@
 				<tr>
 					<th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Category</th>
 					<th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Floor</th>
-					<th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Requirements</th>
 					<th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Photos</th>
 				</tr>
 			</thead>
@@ -60,9 +58,6 @@
 					<tr class="hover:bg-stone-50">
 						<td class="whitespace-nowrap px-3 py-2 text-sm text-stone-900">{p.category_name ?? '-'}</td>
 						<td class="whitespace-nowrap px-3 py-2 text-sm text-stone-700">{getFloors(p) || '-'}</td>
-						<td class="px-3 py-2 text-sm text-stone-700">
-							<div class="max-h-24 max-w-md overflow-hidden whitespace-pre-wrap">{p.requirements ?? '-'}</div>
-						</td>
 						<td class="px-3 py-2">
 							{#if totalPhotos === 0}
 								<span class="text-sm text-stone-500">-</span>

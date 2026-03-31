@@ -8,7 +8,6 @@ export async function load() {
 		SELECT
 			p.id,
 			c.name AS category_name,
-			p.requirements,
 			p.floor_rent,
 			p.floor_7,
 			p.floor_8,
