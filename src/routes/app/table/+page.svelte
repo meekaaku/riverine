@@ -1,4 +1,6 @@
 <script lang="ts">
+ 
+ /* mobile friendyly table layout */
 	type Photo = { id: number; url: string; thumb?: string | null } | null;
 
 	type ProductRow = {
