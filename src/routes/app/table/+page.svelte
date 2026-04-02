@@ -30,6 +30,7 @@
 	}
 </script>
 
+<!-- mobile friendly dtable that is horizontal scrollable-->
 <div class="p-4">
 	<div class="mb-4">
 		<h1 class="text-lg font-semibold text-stone-900">Products Table</h1>
