@@ -31,6 +31,7 @@ export async function load({ params }) {
 		db.execute(sql`SELECT id, name FROM rvr_category ORDER BY name`)
 	]);
 
+	/* do we really need this ? */
 	const productRows = Array.isArray(productResult) ? productResult : (productResult as { rows?: unknown[] }).rows ?? [];
 	const product = productRows[0];
 
