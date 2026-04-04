@@ -45,6 +45,7 @@ export async function load({ params }) {
 }
 
 export const actions = {
+	/* need to properly type this */
 	default: async ({ request, params, locals }) => {
 		const formData = await request.formData();
 		const intent = formData.get('intent')?.toString();
