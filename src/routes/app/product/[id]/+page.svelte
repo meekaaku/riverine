@@ -7,6 +7,7 @@
 
 	let { data } = $props();
 
+	/* some constants */
 	const MAX_PHOTOS_BYTES = 10 * 1024 * 1024; // 10MB
 	const product = $derived<any>(data?.product);
 	const categories = $derived<any[]>(data?.categories ?? []);
