@@ -50,11 +50,14 @@
 	);
 	const hasMultipleImages = $derived(lightboxImages.length > 1);
 
+	/* handle basic gallery managemnt */
 	function openLightbox(index: number) {
+
 		if (index >= 0 && index < lightboxImages.length) lightboxIndex = index;
 	}
 
 	function closeLightbox() {
+
 		lightboxIndex = null;
 	}
 
