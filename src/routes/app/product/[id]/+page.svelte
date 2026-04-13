@@ -40,6 +40,7 @@
 	let isDeleting = $state(false);
 	let showSuccess = $state(false);
 	let isDragging = $state(false);
+	/* ts-ignore */
 	let fileInput: HTMLInputElement | null = null;
 	let lightboxIndex = $state<number | null>(null);
 	let removingImageId = $state<string | number | null>(null);

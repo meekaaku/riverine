@@ -34,6 +34,7 @@ export async function load() {
 		LIMIT ${limit}
 	`);
 
+	/* is there a better way to do this ? */
 	const products = Array.isArray(productsResult) ? productsResult : (productsResult as { rows?: unknown[] }).rows ?? [];
 
 	return { products };
